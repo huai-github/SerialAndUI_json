@@ -10,7 +10,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5 import QtCore
 from time import sleep
 from my_thread import MyThread
-import task
+import thread
 import gps
 
 h = 480  # 画布大小
@@ -166,8 +166,8 @@ class MyWindows(QWidget, UI.Ui_Form):
 if __name__ == "__main__":
 	app = QApplication(sys.argv)
 
-	gps_thread = threading.Thread(target=gps.gps_thread_fun)
-	_4g_thread = threading.Thread(target=task._4g_thread_func)
+	gps_thread = threading.Thread(target=thread.gps_thread_fun)
+	_4g_thread = threading.Thread(target=thread._4g_thread_func)
 	gps_thread.start()  	# 启动线程
 	sleep(0.5)
 	_4g_thread.start()
