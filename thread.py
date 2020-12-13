@@ -1,13 +1,36 @@
 from com import *
 from task_4g import *
+from gps import *
 
 
 g_4G_COM = "com21"
 g_GPS_COM = "com5"
 g_LASER_COM = "com9"
+
+GPS_REC_BUF_LEN = 138
 LASER_REC_BUF_LEN = 11
 
 g_distance = 0
+
+def gps_thread_fun():
+	while True:
+		gps_data = GPSINSData()
+		gps_msg_switch = LatLonAlt()
+		gps_com = SerialPortCommunication(g_GPS_COM, 115200, 0.2)  # 5Hz
+		gps_rec_buffer = []
+		gps_com.rec_data(gps_rec_buffer, GPS_REC_BUF_LEN)  # int
+		gps_com.close_com()
+		# thread.gps_threadLock.acquire()  # 加锁
+		gps_data.gps_msg_analysis(gps_rec_buffer)
+		# 8 -> 1，得到经纬度
+		gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude = gps_data.gps_typeswitch()
+		# print("纬度：%s\t经度：%s\t海拔：%s\t" % (gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude))
+		# 经纬度转高斯坐标
+		global g_x, g_y, g_h
+		g_x, g_y = LatLon2XY(gps_msg_switch.latitude, gps_msg_switch.longitude)
+		g_h = gps_msg_switch.altitude
+		# thread.gps_threadLock.release()  # 解锁
+		# print("x：%s\ty：%s\tdeep：%s" % (g_x, g_y, g_h))  # 高斯坐标
 
 def _4g_thread_func():
 	rectask = ReceiveTask()
@@ -51,4 +74,5 @@ def laser_thread_func():
 
 if __name__ == "__main__":
 	# _4g_thread_func()
-	laser_thread_func()
+	# laser_thread_func()
+	gps_thread_fun()

@@ -106,24 +106,3 @@ class GPSINSData(object):
 
 		return gps_switch_lat.double, gps_switch_lon.double, gps_switch_alt.double
 
-
-def gps_thread_fun():
-	while True:
-		gps_data = GPSINSData()
-		gps_msg_switch = LatLonAlt()
-		gps_com = SerialPortCommunication(thread.g_GPS_COM, 115200, 0.2)  # 5Hz
-		gps_rec_buffer = []
-		gps_com.rec_data(gps_rec_buffer, 138)  # int
-		gps_com.close_com()
-		# thread.gps_threadLock.acquire()  # 加锁
-		gps_data.gps_msg_analysis(gps_rec_buffer)
-		# 8 -> 1，得到经纬度
-		gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude = gps_data.gps_typeswitch()
-		print("纬度：%s\t经度：%s\t海拔：%s\t" % (gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude))
-		# 经纬度转高斯坐标
-		global g_x, g_y, g_h
-		g_x, g_y = LatLon2XY(gps_msg_switch.latitude, gps_msg_switch.longitude)
-		g_h = gps_msg_switch.altitude
-		# thread.gps_threadLock.release()  # 解锁
-	# print("x：%s\ty：%s\tdeep：%s" % (g_x, g_y, g_h))  # 高斯坐标
-
