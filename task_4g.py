@@ -1,13 +1,8 @@
 import com
 import json
 import gps
+from functools import reduce
 
-
-def returnSum(myDict):
-	sum = 0
-	for i in myDict:
-		sum = sum + myDict[i]
-	return sum
 
 class ReceiveTask(object):
 	"""接收任务消息和心跳信息"""
@@ -49,23 +44,18 @@ class SendMessage(object):
 	seqnum = 0 # 静态变量
 	def __init__(self):
 		self.send_buf_dict = {"Type":0,
-					   	 "Id":0,
-					     "SeqNum":0,
-					     "X":0,
-					     "Y":0,
-					     "H":0,
-					     "SumCheck":0,
-						}
-		# self.send_buf = {"id":0,
-		# 			   "x1":0,
-		# 			   "y1":0,
-		# 			   "x2":0,
-		# 			   "y2":0,
-		# 				}
+					   	 	  "Id":0,
+					    	  "SeqNum":0,
+					     	  "X":0,
+					     	  "Y":0,
+					     	  "H":0,
+					     	  "SumCheck":0,
+							}
+
 		self.send_heart = {"Type":0,
 						   "Id": 0,
 						   "SeqNum":0,
-						   "ACK":0
+						   "ACK":0,
 						   }
 
 	def get_gps_msg(self):
@@ -77,17 +67,12 @@ class SendMessage(object):
 		self.send_buf_dict["X"] = gps.g_x
 		self.send_buf_dict["Y"] = gps.g_y
 		self.send_buf_dict["H"] = gps.g_h
-		print("seqnum: ", seqnum)
-		self.send_buf_dict["SumCheck"] = returnSum(self.send_buf_dict)
-		# self.send_buf_dict["SumCheck"] = 0
 
-		# self.send_buf["id"] = 10
-		# self.send_buf["x1"] = 1
-		# self.send_buf["y1"] = 2
-		# self.send_buf["x2"] = 3
-		# self.send_buf["y2"] = 4
+		self.send_buf_dict["SumCheck"] = reduce(lambda x,y:x+y,self.send_buf_dict.values()) \
+										 - self.send_buf_dict["SumCheck"]
 
 		print(self.send_buf_dict)
+
 		return  self.send_buf_dict
 
 	def msg_switch_json(self, dict_buf):
