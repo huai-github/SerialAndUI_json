@@ -1,11 +1,7 @@
-from com import SerialPortCommunication
 from tools import *
 import math
 import thread
 
-g_x = 0  # 高斯坐标，全局变量，double类型
-g_y = 0
-g_h = 0
 g_line_worked_flag = False  # 本直线段工作完成标志
 g_deep_worked_flag = False  # 挖完一斗
 
@@ -35,9 +31,9 @@ def LatLon2XY(latitude, longitude):
 	N = a / math.sqrt(1 - et3)
 
 	x = X + N * t * (0.5 * pow(m, 2) + (5.0 - pow(t, 2) + 9.0 * et2 + 4 * pow(et2, 2)) * pow(m, 4) / 24.0 + (
-				61.0 - 58.0 * pow(t, 2) + pow(t, 4)) * pow(m, 6) / 720.0)
+			61.0 - 58.0 * pow(t, 2) + pow(t, 4)) * pow(m, 6) / 720.0)
 	y = 500000 + N * (m + (1.0 - pow(t, 2) + et2) * pow(m, 3) / 6.0 + (
-				5.0 - 18.0 * pow(t, 2) + pow(t, 4) + 14.0 * et2 - 58.0 * et2 * pow(t, 2)) * pow(m, 5) / 120.0)
+			5.0 - 18.0 * pow(t, 2) + pow(t, 4) + 14.0 * et2 - 58.0 * et2 * pow(t, 2)) * pow(m, 5) / 120.0)
 
 	return x, y
 
@@ -86,7 +82,8 @@ class GPSINSData(object):
 				return
 		else:
 			print("data head error!!!\r\n")
-		# return
+
+	# return
 
 	def gps_typeswitch(self):
 		gps_switch_lat = TypeSwitchUnion()
@@ -105,4 +102,3 @@ class GPSINSData(object):
 		gps_switch_alt.char_8 = altitude
 
 		return gps_switch_lat.double, gps_switch_lon.double, gps_switch_alt.double
-

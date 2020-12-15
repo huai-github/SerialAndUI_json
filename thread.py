@@ -4,6 +4,7 @@ from gps import *
 from time import sleep
 from datetime import datetime
 from threading import Timer
+import threading
 
 
 g_4G_COM = "com21"
@@ -14,6 +15,10 @@ g_GYRO_COM = "com9"
 GPS_REC_BUF_LEN = 138
 LASER_REC_BUF_LEN = 11
 GYRO_REC_BUF_LEN = (11 * 4)
+
+g_x = 0  # 高斯坐标，全局变量，double类型
+g_y = 0
+g_h = 0
 
 g_distance = 0
 g_roll = 0
@@ -58,13 +63,14 @@ def gps_thread_fun():
 		gps_data.gps_msg_analysis(gps_rec_buffer)
 		# 8 -> 1，得到经纬度
 		gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude = gps_data.gps_typeswitch()
-		print("纬度：%s\t经度：%s\t海拔：%s\t" % (gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude))
+		# print("纬度：%s\t经度：%s\t海拔：%s\t" % (gps_msg_switch.latitude, gps_msg_switch.longitude, gps_msg_switch.altitude))
 		# 经纬度转高斯坐标
 		global g_x, g_y, g_h
 		g_x, g_y = LatLon2XY(gps_msg_switch.latitude, gps_msg_switch.longitude)
 		g_h = gps_msg_switch.altitude
 		# thread.gps_threadLock.release()  # 解锁
-		print("x：%s\ty：%s\tdeep：%s" % (g_x, g_y, g_h))  # 高斯坐标
+		print("x：%s\t y：%s\t deep：%s" % (g_x, g_y, g_h))  # 高斯坐标
+
 
 def _4g_thread_func():
 	rectask = ReceiveTask()
@@ -77,27 +83,28 @@ def _4g_thread_func():
 	minute.start()
 	minute.cancel()
 
-	# while True:
+	while True:
 		# 接收任务
 
 		# 条件：一直接收
-		# rec_buf = com_4g.rec_until(b'}')  # byte -> bytes
-		# # print("rec_buf: ", rec_buf)
-		# if rec_buf != b'':
-		# 	rec_buf_dict = rectask.task_switch_dict(rec_buf)
-		#
-		# 	print("rec_buf_dict: ", rec_buf_dict)
-		# 	rectask.task_msg_pars(rec_buf_dict)
+		rec_buf = com_4g.rec_until(b'}')  # byte -> bytes
+		# print("rec_buf: ", rec_buf)
+		if rec_buf != b'':
+			# 转成字典格式
+			rec_buf_dict = rectask.task_switch_dict(rec_buf)
+			# print("rec_buf_dict: ", rec_buf_dict)
 
-
-
-
+			if (rec_buf_dict["Type"] == 0) and ("ACK" in rec_buf_dict.keys()):			# 心跳消息
+				heart.heart_msg_pars(rec_buf_dict)
+			if (rec_buf_dict["Type"] == 2) and ("Section" in rec_buf_dict.keys()):  	# 任务消息
+				rectask.task_msg_pars(rec_buf_dict)		# 解析任务消息
 
 		# 发送消息
 		# 条件：挖完发送 <- 挖完？
-		# send_buf_dict = send.get_gps_msg()
-		# send_buf_json = send.msg_switch_json(send_buf_dict)
-		# com_4g.send_data(send_buf_json.encode('utf-8'))
+		send_buf_dict = send.get_gps_msg(g_x, g_y, g_h)
+		send_buf_json = send.msg_switch_json(send_buf_dict)
+		com_4g.send_data(send_buf_json.encode('utf-8'))
+
 
 def laser_thread_func():
 	com_laser = SerialPortCommunication(g_LASER_COM, 9600, 0.5)
@@ -118,6 +125,7 @@ def laser_thread_func():
 				global g_distance
 				g_distance = float(distance)
 				print("g_distance: ", g_distance)
+
 
 def gyro_thread_func():
 	com_gyro = SerialPortCommunication(g_GYRO_COM, 115200, 0.5)
@@ -140,7 +148,9 @@ def gyro_thread_func():
 
 
 if __name__ == "__main__":
-	_4g_thread_func()
-	# laser_thread_func()
-	# gps_thread_fun()
-	# gyro_thread_func()
+	gps_thread = threading.Thread(target=gps_thread_fun)
+	_4g_thread = threading.Thread(target=_4g_thread_func)
+	gps_thread.start()  # 启动线程
+	sleep(0.5)
+	_4g_thread.start()
+

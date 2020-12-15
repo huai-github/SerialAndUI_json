@@ -1,6 +1,6 @@
 import com
 import json
-import gps
+import thread
 from functools import reduce
 
 
@@ -23,33 +23,29 @@ class ReceiveTask(object):
 
 	def task_msg_pars(self, pars_dict_buf):
 		"""解析字典格式的任务消息并保存"""
-		if (pars_dict_buf["Type"] == 0) and ("ACK" in pars_dict_buf.keys()):	# 心跳并且字典中有ACK关键字
-			heart = Heart() # 创建心跳对象
-			if pars_dict_buf["ACK"] == 0: # 有应答
-				# 接收到心跳信号
-				# 。。。
-				heart.Type = pars_dict_buf["Type"]
-				heart.Id = pars_dict_buf["Id"]
-				heart.SeqNum = pars_dict_buf["SeqNum"]
-				heart.ACK = pars_dict_buf["ACK"]
-			else:	# ACK == 1
-				pass
 
-		if pars_dict_buf["Type"] == 2:	# 任务
-			# if 校验通过
-			# .....
+		# sumcheck = reduce(lambda x, y: x + y, pars_dict_buf.values()) - pars_dict_buf["SumCheck"]
+		# print("sumcheck:", sumcheck)
+		# if sumcheck == pars_dict_buf["SumCheck"]: # 校验通过
 
-			# 保存数据到body结构体
-			self.Id = pars_dict_buf["Id"]
-			self.SeqNum = pars_dict_buf["SeqNum"]
-			self.BaseH = pars_dict_buf["BaseH"]
-			self.SectionNum = pars_dict_buf["SectionNum"]
-			self.Section = pars_dict_buf["Section"]
+		# 保存数据到body结构体
+		self.Id = pars_dict_buf["Id"]
+		self.SeqNum = pars_dict_buf["SeqNum"]
+		self.BaseH = pars_dict_buf["BaseH"]
+		self.SectionNum = pars_dict_buf["SectionNum"]
+		self.Section = pars_dict_buf["Section"]
+		print("rec ok")
+		# TODO:Section部分怎么办???
+
+
+		# else:	# 校验不通过
+		# 	# TODO:校验不通过
+		# 	pass
 
 
 class SendMessage(object):
 	"""发送消息"""
-	seqnum = 0 # 静态变量
+	s_seqnum = 0 # 静态变量
 	def __init__(self):
 		self.send_buf_dict = {
 			"Type": 0,
@@ -61,16 +57,17 @@ class SendMessage(object):
 			"SumCheck": 0,
 		}
 
-	def get_gps_msg(self):
+	def get_gps_msg(self, x, y, h):
 		# 将gps数据复制给发送结构体
 		self.send_buf_dict["Type"] = 1
 		self.send_buf_dict["Id"] = 1
-		seqnum = self.send_buf_dict["SeqNum"] + 1
-		self.send_buf_dict["SeqNum"] = seqnum
-		self.send_buf_dict["X"] = gps.g_x
-		self.send_buf_dict["Y"] = gps.g_y
-		self.send_buf_dict["H"] = gps.g_h
-
+		SendMessage.s_seqnum = SendMessage.s_seqnum + 1
+		self.send_buf_dict["SeqNum"] = SendMessage.s_seqnum + 1
+		self.send_buf_dict["X"] = x
+		print("x:", x)
+		self.send_buf_dict["Y"] = y
+		self.send_buf_dict["H"] = h
+		# 对字典中SumCheck以外的所有值进行就和
 		self.send_buf_dict["SumCheck"] = reduce(lambda x,y:x+y,self.send_buf_dict.values()) \
 										 - self.send_buf_dict["SumCheck"]
 
@@ -82,8 +79,6 @@ class SendMessage(object):
 		"""将字典转换成json格式"""
 		send_buf_json = json.dumps(dict_buf)
 		return send_buf_json
-
-
 
 
 class Heart(object):
@@ -102,14 +97,16 @@ class Heart(object):
 			"ACK" : 0,
 		}
 
-	def rec_heart_msg(self):
+	def heart_msg_pars(self, pars_dict_buf):
+		print("heart_msg_pars")
+		# TODO:解析心跳信息
 		pass
 
 	def send_heart_msg(self, com):
 		self.heart_send_dict["Type"] = 0	# 心跳
 		self.heart_send_dict["Id"] = 1
 		Heart.s_seqnum = Heart.s_seqnum + 1
-		self.heart_send_dict["SeqNum"] = Heart.s_seqnum
+		self.heart_send_dict["SeqNum"] = Heart.s_seqnum +1
 		self.heart_send_dict["ACK"] = 0		# 应答
 		# dict转成json格式，并发送
 		send_buf_json = json.dumps(self.heart_send_dict)
