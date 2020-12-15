@@ -2,6 +2,8 @@ from com import *
 from task_4g import *
 from gps import *
 from time import sleep
+from datetime import datetime
+from threading import Timer
 
 
 g_4G_COM = "com21"
@@ -17,6 +19,32 @@ g_distance = 0
 g_roll = 0
 g_pitch = 0
 g_yaw = 0
+
+
+class TimeInterval(object):
+	def __init__(self, start_time, interval, callback_proc, args=None, kwargs=None):
+		self.__timer = None
+		self.__start_time = start_time
+		self.__interval = interval
+		self.__callback_pro = callback_proc
+		self.__args = args if args is not None else []
+		self.__kwargs = kwargs if kwargs is not None else {}
+
+	def exec_callback(self, args=None, kwargs=None):
+		self.__callback_pro(*self.__args, **self.__kwargs)
+		self.__timer = Timer(self.__interval, self.exec_callback)
+		self.__timer.start()
+
+	def start(self):
+		interval = self.__interval - (datetime.now().timestamp() - self.__start_time.timestamp())
+		# print( interval )
+		self.__timer = Timer(interval, self.exec_callback)
+		self.__timer.start()
+
+	def cancel(self):
+		self.__timer.cancel()
+		self.__timer = None
+
 
 def gps_thread_fun():
 	while True:
@@ -41,24 +69,35 @@ def gps_thread_fun():
 def _4g_thread_func():
 	rectask = ReceiveTask()
 	send = SendMessage()
+	heart = Heart()
 	com_4g = SerialPortCommunication(g_4G_COM, 115200, 0.5)
+	# 间隔一分钟发送一次心跳
+	start = datetime.now().replace(minute=0, second=0, microsecond=0)
+	minute = TimeInterval(start, 2, heart.send_heart_msg, [com_4g])		# 2s
+	minute.start()
+	minute.cancel()
 
-	while True:
+	# while True:
 		# 接收任务
 
 		# 条件：一直接收
-		rec_buf = com_4g.rec_until(b'}')  # byte -> bytes
-		print("rec_buf: ", rec_buf)
-		if rec_buf != b'':
-			rec_buf_dict = rectask.task_switch_dict(rec_buf)
-			print("rec_buf_dict: ", rec_buf_dict)
-			rectask.task_msg_pars(rec_buf_dict)
+		# rec_buf = com_4g.rec_until(b'}')  # byte -> bytes
+		# # print("rec_buf: ", rec_buf)
+		# if rec_buf != b'':
+		# 	rec_buf_dict = rectask.task_switch_dict(rec_buf)
+		#
+		# 	print("rec_buf_dict: ", rec_buf_dict)
+		# 	rectask.task_msg_pars(rec_buf_dict)
+
+
+
+
 
 		# 发送消息
 		# 条件：挖完发送 <- 挖完？
-		send_buf_dict = send.get_gps_msg()
-		send_buf_json = send.msg_switch_json(send_buf_dict)
-		com_4g.send_data(send_buf_json.encode('utf-8'))
+		# send_buf_dict = send.get_gps_msg()
+		# send_buf_json = send.msg_switch_json(send_buf_dict)
+		# com_4g.send_data(send_buf_json.encode('utf-8'))
 
 def laser_thread_func():
 	com_laser = SerialPortCommunication(g_LASER_COM, 9600, 0.5)
@@ -90,7 +129,6 @@ def gyro_thread_func():
 			if gyro_rec_buf[target_index - 1] == 0x55:	# 数据头
 				data = gyro_rec_buf[(target_index - 1):(target_index + 10)]
 				# print(data.hex()) # 55 53 cf ff f7 ff 82 1d 29 29 5d
-				# 校验
 				global g_roll, g_pitch, g_yaw
 				g_roll = int(((data[3]<<8) | data[2])) / 32768 * 180
 				g_pitch = int(((data[5]<<8) | data[4])) / 32768 * 180

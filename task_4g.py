@@ -5,7 +5,7 @@ from functools import reduce
 
 
 class ReceiveTask(object):
-	"""接收任务消息和心跳信息"""
+	"""接收任务消息"""
 	def __init__(self):
 		# body内容
 		self.Type = 0
@@ -22,11 +22,23 @@ class ReceiveTask(object):
 		return rec_buf_dict
 
 	def task_msg_pars(self, pars_dict_buf):
-		"""解析字典格式的任务消息"""
-		if pars_dict_buf["Type"] == "heart":
-			self.task_heart_parsing()
-			pass
-		if pars_dict_buf["Type"] == 2:
+		"""解析字典格式的任务消息并保存"""
+		if (pars_dict_buf["Type"] == 0) and ("ACK" in pars_dict_buf.keys()):	# 心跳并且字典中有ACK关键字
+			heart = Heart() # 创建心跳对象
+			if pars_dict_buf["ACK"] == 0: # 有应答
+				# 接收到心跳信号
+				# 。。。
+				heart.Type = pars_dict_buf["Type"]
+				heart.Id = pars_dict_buf["Id"]
+				heart.SeqNum = pars_dict_buf["SeqNum"]
+				heart.ACK = pars_dict_buf["ACK"]
+			else:	# ACK == 1
+				pass
+
+		if pars_dict_buf["Type"] == 2:	# 任务
+			# if 校验通过
+			# .....
+
 			# 保存数据到body结构体
 			self.Id = pars_dict_buf["Id"]
 			self.SeqNum = pars_dict_buf["SeqNum"]
@@ -34,29 +46,20 @@ class ReceiveTask(object):
 			self.SectionNum = pars_dict_buf["SectionNum"]
 			self.Section = pars_dict_buf["Section"]
 
-	def task_heart_parsing(self):
-		"""解析dict格式的心跳消息"""
-		pass
-
 
 class SendMessage(object):
 	"""发送消息"""
 	seqnum = 0 # 静态变量
 	def __init__(self):
-		self.send_buf_dict = {"Type":0,
-					   	 	  "Id":0,
-					    	  "SeqNum":0,
-					     	  "X":0,
-					     	  "Y":0,
-					     	  "H":0,
-					     	  "SumCheck":0,
-							}
-
-		self.send_heart = {"Type":0,
-						   "Id": 0,
-						   "SeqNum":0,
-						   "ACK":0,
-						   }
+		self.send_buf_dict = {
+			"Type": 0,
+			"Id": 0,
+			"SeqNum": 0,
+			"X": 0,
+			"Y": 0,
+			"H": 0,
+			"SumCheck": 0,
+		}
 
 	def get_gps_msg(self):
 		# 将gps数据复制给发送结构体
@@ -80,11 +83,36 @@ class SendMessage(object):
 		send_buf_json = json.dumps(dict_buf)
 		return send_buf_json
 
-	def send_heart(self):
-		self.send_heart["Type"] = 0,
-		self.send_heart["Id"] = 1,
-		self.send_heart["SeqNum"] = 1,
-		self.send_heart["ACK"] = 0
 
+
+
+class Heart(object):
+	"""收发心跳消息"""
+	s_seqnum = 0	# 静态变量
+	def __init__(self):
+		self.Type = 0
+		self.Id = 0
+		self.SeqNum = 0
+		self.ACK = 0
+
+		self.heart_send_dict = {
+			"Type" : 0,
+			"Id" : 0,
+			"SeqNum" : 0,
+			"ACK" : 0,
+		}
+
+	def rec_heart_msg(self):
+		pass
+
+	def send_heart_msg(self, com):
+		self.heart_send_dict["Type"] = 0	# 心跳
+		self.heart_send_dict["Id"] = 1
+		Heart.s_seqnum = Heart.s_seqnum + 1
+		self.heart_send_dict["SeqNum"] = Heart.s_seqnum
+		self.heart_send_dict["ACK"] = 0		# 应答
+		# dict转成json格式，并发送
+		send_buf_json = json.dumps(self.heart_send_dict)
+		com.send_data(send_buf_json.encode('utf-8'))
 
 
