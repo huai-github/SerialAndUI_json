@@ -3,6 +3,15 @@ import json
 import thread
 from functools import reduce
 
+g_line_x1 = 0
+g_line_y1 = 0
+g_line_h1 = 0
+g_line_w1 = 0
+g_line_x2 = 0
+g_line_y2 = 0
+g_line_h2 = 0
+g_line_w2 = 0
+
 
 class ReceiveTask(object):
 	"""接收任务消息"""
@@ -13,35 +22,48 @@ class ReceiveTask(object):
 		self.SeqNum = 0
 		self.BaseH = 0
 		self.SectionNum = 0
-		self.Section = 0
+		self.section_dict = {}
 
 	def task_switch_dict(self, rec_buf):
 		"""将接收到的json格式任务消息转换成字典"""
 		rec_to_str = str(rec_buf, encoding="utf-8")  # bytes -> str，不是dict！！！
+		rec_to_str = rec_to_str[1:-1]	# 去掉[]
+		# print("rec_to_str:", rec_to_str)
 		rec_buf_dict = eval(rec_to_str)  # str -> dict，便于获得数据
-		return rec_buf_dict
+
+		# 得到Section部分, 心跳消息没有Section部分，直接跳过
+		if "Section" in rec_buf_dict.keys():
+			self.section_dict = rec_buf_dict["Section"]
+			# print("self.section_dict:", self.section_dict)
+			del rec_buf_dict["Section"]	# 将Section在原字典中删除
+			# print("del:", rec_buf_dict)
+
+		return rec_buf_dict # 返回删除section部分的字典
 
 	def task_msg_pars(self, pars_dict_buf):
 		"""解析字典格式的任务消息并保存"""
-
-		# sumcheck = reduce(lambda x, y: x + y, pars_dict_buf.values()) - pars_dict_buf["SumCheck"]
-		# print("sumcheck:", sumcheck)
-		# if sumcheck == pars_dict_buf["SumCheck"]: # 校验通过
 
 		# 保存数据到body结构体
 		self.Id = pars_dict_buf["Id"]
 		self.SeqNum = pars_dict_buf["SeqNum"]
 		self.BaseH = pars_dict_buf["BaseH"]
 		self.SectionNum = pars_dict_buf["SectionNum"]
-		self.Section = pars_dict_buf["Section"]
-		print("rec ok")
-		# TODO:Section部分怎么办???
 
-
-		# else:	# 校验不通过
-		# 	# TODO:校验不通过
-		# 	pass
-
+		section_list = list(self.section_dict.values())
+		print("section_list:", section_list)
+		# 循环分离直线段
+		# TODO: 挖完一斗的标志位，g_worked_flag
+		for i in range(0, len(section_list), 8):
+			global g_line_x1, g_line_y1, g_line_h1, g_line_w1
+			g_line_x1 = section_list[0]
+			g_line_y1 = section_list[1]
+			g_line_h1 = section_list[2]
+			g_line_w1 = section_list[3]
+			g_line_x2 = section_list[4]
+			g_line_y2 = section_list[5]
+			g_line_h2 = section_list[6]
+			g_line_w2 = section_list[7]
+			print("g_line_x1:", g_line_x1)
 
 class SendMessage(object):
 	"""发送消息"""
@@ -95,11 +117,12 @@ class Heart(object):
 			"Id" : 0,
 			"SeqNum" : 0,
 			"ACK" : 0,
+
 		}
 
 	def heart_msg_pars(self, pars_dict_buf):
 		print("heart_msg_pars")
-		# TODO:解析心跳信息
+		# TODO:一分钟之内收不到心跳，说明断线，需要报警
 		pass
 
 	def send_heart_msg(self, com):

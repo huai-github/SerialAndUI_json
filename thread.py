@@ -55,8 +55,8 @@ def gps_thread_fun():
 	while True:
 		gps_data = GPSINSData()
 		gps_msg_switch = LatLonAlt()
-		gps_com = SerialPortCommunication(g_GPS_COM, 115200, 0.2)  # 5Hz
 		gps_rec_buffer = []
+		gps_com = SerialPortCommunication(g_GPS_COM, 115200, 0.2)  # 5Hz
 		gps_com.rec_data(gps_rec_buffer, GPS_REC_BUF_LEN)  # int
 		gps_com.close_com()
 		# thread.gps_threadLock.acquire()  # 加锁
@@ -73,7 +73,7 @@ def gps_thread_fun():
 
 
 def _4g_thread_func():
-	rectask = ReceiveTask()
+	rec_task = ReceiveTask()
 	send = SendMessage()
 	heart = Heart()
 	com_4g = SerialPortCommunication(g_4G_COM, 115200, 0.5)
@@ -87,23 +87,22 @@ def _4g_thread_func():
 		# 接收任务
 
 		# 条件：一直接收
-		rec_buf = com_4g.rec_until(b'}')  # byte -> bytes
+		rec_buf = com_4g.rec_until(b']')  # byte -> bytes
 		# print("rec_buf: ", rec_buf)
 		if rec_buf != b'':
 			# 转成字典格式
-			rec_buf_dict = rectask.task_switch_dict(rec_buf)
-			# print("rec_buf_dict: ", rec_buf_dict)
+			rec_buf_dict = rec_task.task_switch_dict(rec_buf)
 
-			if (rec_buf_dict["Type"] == 0) and ("ACK" in rec_buf_dict.keys()):			# 心跳消息
+			if (rec_buf_dict["Type"] == 0) and ("ACK" in rec_buf_dict.keys()):		# 心跳消息
 				heart.heart_msg_pars(rec_buf_dict)
-			if (rec_buf_dict["Type"] == 2) and ("Section" in rec_buf_dict.keys()):  	# 任务消息
-				rectask.task_msg_pars(rec_buf_dict)		# 解析任务消息
+			if (rec_buf_dict["Type"] == 2) and ("BaseH" in rec_buf_dict.keys()):  	# 任务消息
+				rec_task.task_msg_pars(rec_buf_dict)		# 解析任务消息
 
 		# 发送消息
 		# 条件：挖完发送 <- 挖完？
-		send_buf_dict = send.get_gps_msg(g_x, g_y, g_h)
-		send_buf_json = send.msg_switch_json(send_buf_dict)
-		com_4g.send_data(send_buf_json.encode('utf-8'))
+		# send_buf_dict = send.get_gps_msg(g_x, g_y, g_h)
+		# send_buf_json = send.msg_switch_json(send_buf_dict)
+		# com_4g.send_data(send_buf_json.encode('utf-8'))
 
 
 def laser_thread_func():
@@ -150,7 +149,7 @@ def gyro_thread_func():
 if __name__ == "__main__":
 	gps_thread = threading.Thread(target=gps_thread_fun)
 	_4g_thread = threading.Thread(target=_4g_thread_func)
-	gps_thread.start()  # 启动线程
+	# gps_thread.start()  # 启动线程
 	sleep(0.5)
 	_4g_thread.start()
 
